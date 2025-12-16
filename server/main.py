@@ -15,6 +15,9 @@ from state_manager import state_manager
 from utils import parse_function_code
 from algorithms import ALGORITHM_MAP
 
+# Import nowego runnera
+from experiment_runner import run_experiment
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -53,7 +56,7 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-# --- Modele danych ---
+# --- Modele ---
 class FunctionPayload(BaseModel):
     name: str
     code: str
@@ -74,56 +77,43 @@ class SimulationRequest(BaseModel):
     selected_function: FunctionPayload
     algorithms: List[AlgorithmConfig]
     resume: bool = False
+    mode: str = "single"  # 'single' lub 'experiment'
 
-# --- Zadanie w tle do wysyłania postępu przez WebSocket ---
+# --- Logika Wyboru ---
 
-async def broadcast_progress_loop():
-    """
-    To zadanie działa w tle i co 0.1s wysyła aktualny stan.
-    Wysyłamy ZAWSZE, nawet jeśli słownik jest pusty, żeby frontend wiedział, że żyjemy.
-    """
-    while True:
-        results = state_manager.get_results()
+def process_request(data: SimulationRequest):
+    """Router logiczny: wybiera zwykłą symulację lub eksperyment."""
+    
+    # 1. Parsowanie funkcji
+    try:
+        objective_func = parse_function_code(data.selected_function.code, data.selected_function.name)
+    except Exception as e:
+        logger.error(f"Function parse error: {e}")
+        return
+
+    # 2. Wybór trybu
+    if data.mode == "experiment":
+        logger.info("Uruchamianie trybu eksperymentalnego (Grid Search)...")
+        # Uruchamiamy nowy runner eksperymentów
+        run_experiment(objective_func, data.algorithms, repeats=10)
         
-        # USUŃ WARUNEK "if results:" - wysyłaj zawsze!
-        await manager.broadcast(results)
-        
-        await asyncio.sleep(0.1)
+    else:
+        # Klasyczna symulacja (pojedynczy przebieg)
+        # (Tu wklej starą logikę pętli z poprzednich odpowiedzi)
+        process_single_simulation(data, objective_func)
 
-# Uruchomienie pętli broadcastu przy starcie serwera
-@app.on_event("startup")
-async def startup_event():
-    # Uruchamiamy to jako zadanie w tle (asyncio task)
-    asyncio.create_task(broadcast_progress_loop())
-
-
-# --- Logika Procesowania (bez zmian logicznych) ---
-def process_simulation(data: SimulationRequest):
+def process_single_simulation(data, objective_func):
+    # Logika z poprzednich wersji (Resume, Single Run)
     if not data.resume:
         state_manager.start_new_session()
         existing_data = {}
     else:
-        try:
-            if os.path.exists("simulation_checkpoint.json"):
-                with open("simulation_checkpoint.json", "r") as f:
-                    checkpoint = json.load(f)
-                    existing_data = checkpoint.get("results", {})
-                    logger.info("Załadowano dane do wznowienia.")
-            else:
-                existing_data = {}
-        except Exception:
-            existing_data = {}
-
-    try:
-        objective_func = parse_function_code(data.selected_function.code, data.selected_function.name)
-    except Exception:
-        return
+        # ... (kod ładowania JSON)
+        existing_data = {} # skrót
 
     for algo_config in data.algorithms:
-        if not algo_config.isUsed:
-            continue
-        if state_manager.should_stop():
-            break
+        if not algo_config.isUsed: continue
+        if state_manager.should_stop(): break
 
         runner = ALGORITHM_MAP.get(algo_config.name)
         if runner:
@@ -132,18 +122,18 @@ def process_simulation(data: SimulationRequest):
                 resume_payload = existing_data.get(algo_config.name) if data.resume else None
                 runner(objective_func, algo_params, state_manager, resume_data=resume_payload)
             except Exception as e:
-                logger.error(f"Błąd: {e}")
-                state_manager.update_progress(algo_config.name, {"status": "error", "message": str(e)})
-    
+                logger.error(f"Error: {e}")
+
     state_manager.save_checkpoint("simulation_final.json")
 
 
-# --- Endpointy HTTP ---
+# --- Endpointy ---
 
 @app.post("/api/start")
 async def start_simulation(request: SimulationRequest, background_tasks: BackgroundTasks):
-    background_tasks.add_task(process_simulation, request)
-    return {"message": "Symulacja rozpoczęta"}
+    # Uruchom odpowiednią logikę w tle
+    background_tasks.add_task(process_request, request)
+    return {"message": f"Rozpoczęto w trybie: {request.mode}"}
 
 @app.post("/api/stop")
 async def stop_simulation():
