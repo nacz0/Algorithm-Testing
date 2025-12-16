@@ -1,28 +1,59 @@
 # main.py
 
-from fastapi import FastAPI, BackgroundTasks
+import asyncio
+from fastapi import FastAPI, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any
 import uvicorn
 import logging
-import time
-import os
 import json
+import os
 
-# Importujemy z nowych modułów
+# Importy z Twoich modułów
 from state_manager import state_manager
 from utils import parse_function_code
 from algorithms import ALGORITHM_MAP
 
-# Konfiguracja logowania
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Heuristic Algorithms Tester")
 
-# --- Modele danych (pozostają w main, bo są specyficzne dla API) ---
+# --- CORS ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+# --- WebSocket Manager ---
+# Klasa zarządzająca aktywnymi połączeniami z frontendem
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        # Wysyłamy wiadomość do wszystkich podłączonych klientów (np. przeglądarek)
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                # Jeśli połączenie zerwane, można je usunąć, tu dla uproszczenia pass
+                pass
+
+manager = ConnectionManager()
+
+# --- Modele danych ---
 class FunctionPayload(BaseModel):
     name: str
     code: str
@@ -42,38 +73,45 @@ class AlgorithmConfig(BaseModel):
 class SimulationRequest(BaseModel):
     selected_function: FunctionPayload
     algorithms: List[AlgorithmConfig]
-    resume: bool = False  # <--- Nowe pole: czy wznawiać?
+    resume: bool = False
 
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# --- Zadanie w tle do wysyłania postępu przez WebSocket ---
 
-# --- Logika Procesowania ---
+async def broadcast_progress_loop():
+    """
+    To zadanie działa w tle i co 0.1s wysyła aktualny stan.
+    Wysyłamy ZAWSZE, nawet jeśli słownik jest pusty, żeby frontend wiedział, że żyjemy.
+    """
+    while True:
+        results = state_manager.get_results()
+        
+        # USUŃ WARUNEK "if results:" - wysyłaj zawsze!
+        await manager.broadcast(results)
+        
+        await asyncio.sleep(0.1)
 
+# Uruchomienie pętli broadcastu przy starcie serwera
+@app.on_event("startup")
+async def startup_event():
+    # Uruchamiamy to jako zadanie w tle (asyncio task)
+    asyncio.create_task(broadcast_progress_loop())
+
+
+# --- Logika Procesowania (bez zmian logicznych) ---
 def process_simulation(data: SimulationRequest):
-    # Jeśli NIE wznawiamy, resetujemy menedżera
     if not data.resume:
         state_manager.start_new_session()
         existing_data = {}
     else:
-        # Jeśli WZNAWIAMY, próbujemy wczytać plik
         try:
             if os.path.exists("simulation_checkpoint.json"):
                 with open("simulation_checkpoint.json", "r") as f:
                     checkpoint = json.load(f)
-                    # Wyciągamy wyniki per algorytm
                     existing_data = checkpoint.get("results", {})
                     logger.info("Załadowano dane do wznowienia.")
             else:
-                logger.warning("Brak pliku checkpointu, start od zera.")
                 existing_data = {}
-        except Exception as e:
-            logger.error(f"Błąd odczytu checkpointu: {e}")
+        except Exception:
             existing_data = {}
 
     try:
@@ -84,7 +122,6 @@ def process_simulation(data: SimulationRequest):
     for algo_config in data.algorithms:
         if not algo_config.isUsed:
             continue
-            
         if state_manager.should_stop():
             break
 
@@ -92,20 +129,16 @@ def process_simulation(data: SimulationRequest):
         if runner:
             try:
                 algo_params = {arg.name: {"min": arg.min, "max": arg.max, "step": arg.step} for arg in algo_config.args}
-                
-                # Pobierz dane dla KONKRETNEGO algorytmu (jeśli istnieją)
                 resume_payload = existing_data.get(algo_config.name) if data.resume else None
-                
-                # Przekazujemy resume_payload do funkcji algorytmu
                 runner(objective_func, algo_params, state_manager, resume_data=resume_payload)
-                
             except Exception as e:
-                logger.error(f"Krytyczny błąd w algorytmie {algo_config.name}: {e}")
+                logger.error(f"Błąd: {e}")
                 state_manager.update_progress(algo_config.name, {"status": "error", "message": str(e)})
     
     state_manager.save_checkpoint("simulation_final.json")
 
-# --- Endpointy ---
+
+# --- Endpointy HTTP ---
 
 @app.post("/api/start")
 async def start_simulation(request: SimulationRequest, background_tasks: BackgroundTasks):
@@ -115,14 +148,26 @@ async def start_simulation(request: SimulationRequest, background_tasks: Backgro
 @app.post("/api/stop")
 async def stop_simulation():
     state_manager.request_stop()
-    time.sleep(0.2) 
+    # Małe opóźnienie dla wątków
+    await asyncio.sleep(0.5)
     state_manager.save_checkpoint("simulation_stopped.json")
     return {"message": "Zatrzymano", "data": state_manager.get_results()}
 
 @app.get("/api/status")
 async def get_status():
-    """Endpoint do pobierania aktualnego postępu przez frontend."""
     return state_manager.get_results()
+
+# --- Nowy Endpoint WebSocket ---
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Oczekujemy na wiadomości od klienta (opcjonalne, np. ping)
+            # Tutaj po prostu utrzymujemy połączenie
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
