@@ -2,164 +2,70 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <title>Test Heurystyk z WebSocket</title>
-    <style>
-        body { font-family: sans-serif; max-width: 800px; margin: 20px auto; padding: 20px; background: #f4f4f9; }
-        .card { background: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        h1 { color: #333; }
-        button { padding: 10px 20px; cursor: pointer; font-size: 16px; border: none; border-radius: 4px; margin-right: 10px;}
-        .btn-start { background-color: #28a745; color: white; }
-        .btn-stop { background-color: #dc3545; color: white; }
-        .btn-resume { background-color: #17a2b8; color: white; }
-        
-        .algo-status { margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px; }
-        .progress-container { width: 100%; background-color: #e0e0e0; border-radius: 5px; margin: 10px 0; }
-        .progress-bar { height: 25px; background-color: #007bff; width: 0%; border-radius: 5px; transition: width 0.2s; text-align: center; color: white; line-height: 25px; font-size: 14px;}
-        .stats { display: flex; justify-content: space-between; font-size: 14px; color: #555; }
-        
-        #connection-status { font-weight: bold; margin-bottom: 10px; }
-        .status-connected { color: green; }
-        .status-disconnected { color: red; }
-    </style>
+    <title>Prosty Test WS</title>
 </head>
 <body>
-
-    <h1>Panel Kontrolny Symulacji</h1>
-
-    <div id="connection-status" class="status-disconnected">🔴 Rozłączono</div>
-
-    <div class="card">
-        <button class="btn-start" onclick="startSimulation()">▶ Start</button>
-        <button class="btn-stop" onclick="stopSimulation()">⏹ Stop</button>
-        <button class="btn-resume" onclick="startSimulation(true)">⟳ Wznów</button>
-    </div>
-
-    <div id="results-container">
-        <p>System gotowy. Kliknij Start.</p>
-    </div>
+    <h2>Kontrola Algorytmu</h2>
+    <button onclick="sendStart()">▶ START</button>
+    <button onclick="sendStart(true)">⟳ WZNÓW (Resume)</button>
+    <button onclick="sendPause()">⏸ PAUZA</button>
+    <button onclick="sendStop()">⏹ STOP</button>
+    
+    <h3>Logi:</h3>
+    <pre id="logs" style="background:#eee; padding:10px; height:200px; overflow:auto;"></pre>
 
     <script>
-        const statusDiv = document.getElementById("connection-status");
-        const container = document.getElementById("results-container");
-        let ws = null;
+        // Połączenie przy starcie strony
+        const ws = new WebSocket("ws://localhost:8000/ws");
 
-        function connectWS() {
-            // Upewnij się, że port (8000) jest taki sam jak w uvicorn
-            ws = new WebSocket("ws://localhost:8000/ws");
-
-            ws.onopen = () => {
-                console.log("✅ WebSocket połączony");
-                statusDiv.textContent = "🟢 Połączono z serwerem";
-                statusDiv.className = "status-connected";
-            };
-
-            ws.onmessage = (event) => {
-                try {
-                    const data = JSON.parse(event.data);
-                    // console.log("Otrzymano dane:", data); // Odkomentuj do debugowania
-                    updateUI(data);
-                } catch (e) {
-                    console.error("Błąd parsowania JSON:", e);
+        ws.onopen = () => log("Połączono z serwerem");
+        ws.onmessage = (e) => {
+            // Jeśli to JSON z postępem, sformatuj go ładnie, jeśli tekst "done" - wypisz
+            try {
+                const data = JSON.parse(e.data);
+                if(data.type === "progress") {
+                    log(`Iteracja: ${data.iteration}/${data.total} | Wynik: ${data.best_score.toFixed(5)}`);
+                } else {
+                    log("Server: " + JSON.stringify(data));
                 }
-            };
-
-            ws.onclose = () => {
-                console.log("❌ WebSocket rozłączony");
-                statusDiv.textContent = "🔴 Rozłączono (Upewnij się, że serwer działa)";
-                statusDiv.className = "status-disconnected";
-                // Próba ponownego połączenia po 3 sekundach
-                setTimeout(connectWS, 3000);
-            };
-            
-            ws.onerror = (err) => {
-                console.error("Błąd WebSocket:", err);
-            };
-        }
-
-        // Inicjalizacja połączenia
-        connectWS();
-
-        function updateUI(data) {
-            // Jeśli dane są puste (np. przed startem), wyświetl info
-            if (Object.keys(data).length === 0) {
-                container.innerHTML = "<p>Serwer połączony. Oczekiwanie na uruchomienie algorytmów...</p>";
-                return;
+            } catch {
+                log("Server: " + e.data);
             }
+        };
 
-            let html = "";
-            for (const [algoName, details] of Object.entries(data)) {
-                if (details.status === "error") {
-                    html += `<div class="card algo-status"><h3 style="color:red">${algoName}: BŁĄD</h3><p>${details.message}</p></div>`;
-                    continue;
-                }
-
-                const current = details.current_iteration || 0;
-                const total = details.total_iterations || 1; 
-                // Zabezpieczenie przed dzieleniem przez zero
-                const percent = total > 0 ? Math.min(100, Math.round((current / total) * 100)) : 0;
-                const score = details.best_score !== undefined ? details.best_score.toFixed(6) : "Init...";
-
-                html += `
-                    <div class="card algo-status">
-                        <h3>${algoName} <span style="font-size:0.8em; color:gray">(${details.status})</span></h3>
-                        
-                        <div class="progress-container">
-                            <div class="progress-bar" style="width: ${percent}%">${percent}%</div>
-                        </div>
-                        
-                        <div class="stats">
-                            <span>Iteracja: <b>${current}</b> / ${total}</span>
-                            <span>Najlepszy wynik: <b>${score}</b></span>
-                        </div>
-                    </div>
-                `;
-            }
-            container.innerHTML = html;
-        }
-
-        async function startSimulation(resume = false) {
-            console.log("Wysyłanie żądania startu...");
+        function sendStart(resume = false) {
             const payload = {
-                "selected_function": {
-                    "name": "Rosenbrock",
-                    "code": "def rosenbrock(x):\n    import numpy as np\n    n = len(x)\n    if n < 2:\n        return np.square(x[0] - 1)\n    term1 = x[1:] - np.square(x[:-1])\n    term2 = x[:-1] - 1\n    return np.sum(100.0 * np.square(term1) + np.square(term2))",
-                    "isCustom": false
-                },
-                "algorithms": [
-                    {
-                        "name": "Bat alhorithm",
-                        "args": [
-                            { "name": "Agents", "min": 50, "max": 0, "step": 0 },
-                            { "name": "Iterations", "min": 5000, "max": 0, "step": 0 },
-                            { "name": "Alpha", "min": 0.9, "max": 0, "step": 0 },
-                            { "name": "Gamma", "min": 0.9, "max": 0, "step": 0 },
-                            { "name": "Frequancy", "min": 2.0, "max": 0, "step": 0 }
-                        ],
-                        "isUsed": true
-                    }
-                ],
-                "resume": resume
-            };
-
-            try {
-                const response = await fetch("http://localhost:8000/api/start", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
-                });
-                const resData = await response.json();
-                console.log("Odpowiedź serwera:", resData);
-            } catch (e) {
-                alert("Nie udało się połączyć z API (POST /api/start). Sprawdź konsolę.");
-                console.error(e);
+    "type": "start",
+    "data": {
+        "resume": resume,
+        "algorithms": [
+            {
+                "name": "Bat alhorithm",
+                "args": [{"name": "Agents", "min": 30}, {"name": "Iterations", "min": 200}]
+            },
+            {
+                "name": "Genetic algorytm",
+                "args": [{"name": "Agents", "min": 50}, {"name": "Iterations", "min": 150}]
             }
+        ]
+    }
+};
+            ws.send(JSON.stringify(payload));
+            log("Wysłano: START (Resume: " + resume + ")");
         }
 
-        async function stopSimulation() {
-            try {
-                await fetch("http://localhost:8000/api/stop", { method: "POST" });
-                console.log("Wysłano stop.");
-            } catch (e) { console.error(e); }
+        function sendPause() {
+            ws.send(JSON.stringify({"type": "pause"}));
+            log("Wysłano: PAUSE");
+        }
+
+        function sendStop() {
+            ws.send(JSON.stringify({"type": "stop"}));
+            log("Wysłano: STOP");
+        }
+
+        function log(msg) {
+            document.getElementById("logs").innerText = msg + "\n" + document.getElementById("logs").innerText;
         }
     </script>
 </body>
