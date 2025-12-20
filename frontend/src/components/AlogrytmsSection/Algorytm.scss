@@ -1,0 +1,112 @@
+.algorithm-card {
+  
+    background: white;
+    border: 2px solid #d1d5db;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.algorithm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.algorithm-header h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 3.5rem;
+    height: 1.75rem;
+    background: #d1d5db;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.toggle-switch.active {
+    background: #10b981;
+}
+
+.toggle-switch .toggle-slider {
+    position: absolute;
+    top: 0.25rem;
+    left: 0.25rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+}
+
+.toggle-switch.active .toggle-slider {
+    transform: translateX(1.75rem);
+}
+
+.param-labels {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+.param-labels .label-space {
+    width: 6rem;
+}
+
+.param-labels .label-text {
+    width: 4rem;
+    text-align: center;
+}
+
+.param-labels .separator {
+    width: 0.5rem;
+}
+
+.param-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.param-row label {
+    width: 6rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    text-transform: capitalize;
+}
+
+.param-row input {
+    width: 4rem;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.param-row input:disabled {
+    background: #f3f4f6;
+    cursor: not-allowed;
+}
+
+.param-row .separator {
+    color: #6b7280;
+}
+
+.control-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
