@@ -1,74 +1,75 @@
-import {useRef, useState} from "preact/hooks"
-import "./FnSection.scss"
+import { useRef, useState } from 'preact/hooks';
+import './FnSection.scss';
 
-interface FnsData{
-    name: string,
-    code: string
+import type { FnData } from '../../interfaces.ts';
+
+interface Props {
+    fnsData: FnData[];
+    setFn: (arg: FnData) => void;
+    selectedFn: FnData;
 }
 
-interface CustomFnData extends FnsData{
-    isCustom: boolean
-}
+const CustomFnSection = ({ fnsData, setFn, selectedFn }: Props) => {
+    const customFnInputContainer = useRef<HTMLDivElement>(null);
+    const textAreaEl = useRef<HTMLTextAreaElement>(null);
+    const [isCustomInputShow, setIsCustomInputShow] = useState(false);
 
-interface Props{
-    fnsData: FnsData[]
-    setFn: (arg: CustomFnData) => void;
-    selectedFn: CustomFnData
-}
-
-const CustomFnSection = ({fnsData, setFn, selectedFn}: Props) => {
-    const customFnInputContainer = useRef<HTMLDivElement>(null)
-    const textAreaEl = useRef<HTMLTextAreaElement>(null)
-    const [ isCustomInputShow, setIsCustomInputShow] = useState(false);
-
-    const setFnFromInput = () =>{
-        if (!textAreaEl.current){
+    const setFnFromInput = () => {
+        if (!textAreaEl.current) {
             return;
         }
+
         const regexPython = /^\s*def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/gm;
         const code = textAreaEl.current.value;
         const matches = [...code.matchAll(regexPython)];
-        
-        const fnName =  matches[0][1]  
-        setIsCustomInputShow(false)
-        setFn({name: fnName, code: fnName, isCustom:true})
-    }
 
-    const setBuildInFn = (e: any) =>{
-        const index:number = e.currentTarget.value;
-        const fnData = fnsData[index]
-        setFn({name: fnData.name, code: fnData.code, isCustom: false})
-    }
+        const fnName = matches[0][1];
+        setIsCustomInputShow(false);
+        setFn({ name: fnName, code: code, isCustom: true, bounds: [-10, 10] });
+    };
 
+    const setBuildInFn = (e: any) => {
+        const index: number = e.currentTarget.value;
+        const fnData = fnsData[index];
+        setFn({ ...fnData, isCustom: false });
+    };
 
     return (
         <>
-            <div ref={customFnInputContainer} className={`CustomFn ${isCustomInputShow && "CustomFn--show"}`} >
+            <div ref={customFnInputContainer} className={`CustomFn ${isCustomInputShow && 'CustomFn--show'}`}>
                 <div className="CustomFn__section">
                     <h4>Wprowadź funkcję Python</h4>
-                    <button onClick={() => setIsCustomInputShow(false)} className="CustomFn__cross">x</button>
-                    <textarea ref={textAreaEl} rows={10} ></textarea> <br/>
-                    <button onClick={() => setFnFromInput()} className="CustomFn__btn-load">Ładuj</button>
+                    <button onClick={() => setIsCustomInputShow(false)} className="CustomFn__cross">
+                        x
+                    </button>
+                    <textarea ref={textAreaEl} rows={10}></textarea> <br />
+                    <button onClick={() => setFnFromInput()} className="CustomFn__btn-load">
+                        Ładuj
+                    </button>
                 </div>
             </div>
-            
-            <div className="FnSection">
 
-                    <h2>Funkcje:</h2>
+            <div className="FnSection">
+                <h2>Funkcje:</h2>
                 <div className="FnSection__section">
                     <div className="FnSection__grid">
                         <div className="FnSection__form-group">
-                            <label className={ `FnSectin__sectionInfo ${selectedFn.isCustom && "FnSection__highlight"} `} htmlFor="custom-function">Własna funkcja:</label>
+                            <label className={`FnSectin__sectionInfo ${selectedFn.isCustom && 'FnSection__highlight'} `} htmlFor="custom-function">
+                                Własna funkcja:
+                            </label>
                             <div>
-                                <button onClick={() => setIsCustomInputShow(true)} >Load</button>
-                                <input id="custom-function" disabled type="text" value={selectedFn.isCustom ? selectedFn.name : ""} placeholder="Nie wybrano"/>
+                                <button onClick={() => setIsCustomInputShow(true)}>Load</button>
+                                <input id="custom-function" disabled type="text" value={selectedFn.isCustom ? selectedFn.name : ''} placeholder="Nie wybrano" />
                             </div>
                         </div>
                         <div className="FnSection__form-group">
-                            <label className={`FnSectin__sectionInfo ${!selectedFn.isCustom && "FnSection__highlight"}`} htmlFor="builtin-function">Wbudowane:</label>
-                            <select id="builtin-function" onChange={(e) => setBuildInFn(e)} >
-                               {fnsData.map((fnData, index) =><option value={index}>{fnData.name}</option> )}
-                               
+                            <label className={`FnSectin__sectionInfo ${!selectedFn.isCustom && 'FnSection__highlight'}`} htmlFor="builtin-function">
+                                Wbudowane:
+                            </label>
+                            <select id="builtin-function" onChange={(e) => setBuildInFn(e)}>
+                                {fnsData.map((fnData, index) => (
+                                    <option value={index}>{fnData.name}</option>
+                                ))}
                             </select>
                         </div>
                     </div>
@@ -76,6 +77,6 @@ const CustomFnSection = ({fnsData, setFn, selectedFn}: Props) => {
             </div>
         </>
     );
-}
+};
 
 export default CustomFnSection;

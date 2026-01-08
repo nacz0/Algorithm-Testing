@@ -7,12 +7,22 @@ interface Props {
     algIndex: number;
 }
 
+const correctInputType = (e: any, type: 'int' | 'float') => {
+    console.log(e.currentTarget.value, type);
+
+    if (type === 'int') {
+        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+    } else if (type === 'float') {
+        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9.]/g, '');
+    }
+};
+
 const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex }: Props) => {
-    const changeParam = (paramIndex: number, type: 'min' | 'max' | 'step' | 'value', value: string) => {
+    const changeParam = (paramIndex: number, type: 'min' | 'max' | 'value', value: string) => {
         // @ts-ignore
         setAlgorithmData((algsParams) => {
             const algsParamsCopy = JSON.parse(JSON.stringify(algsParams));
-            algsParamsCopy[algIndex].args[paramIndex][type] = Number(value);
+            algsParamsCopy[algIndex].params[paramIndex][type] = Number(value);
             return algsParamsCopy;
         });
     };
@@ -29,15 +39,14 @@ const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex }: Props) => {
     return (
         <div className="algorithm-card">
             <div className="algorithm-header">
-                <h3>{algorithmData.name}</h3>
+                <h3>{algorithmData.name} algorithm</h3>
                 <div onClick={() => toggleState()} className={`toggle-switch ${algorithmData.isUsed && 'active'}`} data-algo="bat">
                     <div className="toggle-slider"></div>
                 </div>
             </div>
 
-            {algorithmData.args.length == 0 ? (
-                "Brak argumentów"
-                
+            {algorithmData.params.length == 0 ? (
+                'Brak argumentów'
             ) : (
                 <>
                     <div className="param-labels">
@@ -45,31 +54,50 @@ const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex }: Props) => {
                         <div className="label-text">Min</div>
                         <div className="separator"></div>
                         <div className="label-text">Max</div>
-                        <div className="separator"></div>
-                        <div className="label-text">Step</div>
                     </div>
 
                     {/* Wiersze parametrów (przykłady) */}
 
-                    {algorithmData.args.map((arg, index) => {
-                        if ('value' in arg) {
+                    {algorithmData.params.map((param, index) => {
+                        if ('value' in param) {
                             return (
                                 <div className="param-row">
-                                    <label>{arg.name}:</label>
-                                    <input onChange={(e) => changeParam(index, 'value', e.currentTarget.value)} value={arg.value} type="number" min={0} />
+                                    <label>{param.name}:</label>
+                                    <input
+                                        onInput={(e) => correctInputType(e, param.type)}
+                                        onChange={(e) => changeParam(index, 'value', e.currentTarget.value)}
+                                        value={param.value}
+                                        type="number"
+                                        min={0}
+                                        step={param.type == 'float' ? 0.1 : 1}
+                                    />
                                 </div>
                             );
                         }
 
-                        if ('step' in arg) {
+                        if ('min' in param) {
                             return (
                                 <div className="param-row">
-                                    <label>{arg.name}:</label>
-                                    <input onChange={(e) => changeParam(index, 'min', e.currentTarget.value)} value={arg.min} type="number" step={1} min={0} />
+                                    <label>{param.name}:</label>
+                                    <input
+                                        onChange={(e) => {
+                                            changeParam(index, 'min', e.currentTarget.value);
+                                            correctInputType(e, param.type);
+                                        }}
+                                        value={param.min}
+                                        type="number"
+                                        step={param.type == 'float' ? 0.1 : 1}
+                                        min={0}
+                                    />
                                     <span className="separator">-</span>
-                                    <input onChange={(e) => changeParam(index, 'max', e.currentTarget.value)} value={arg.max} type="number" step={1} min={0} />
-                                    <span className="separator">,</span>
-                                    <input onChange={(e) => changeParam(index, 'step', e.currentTarget.value)} value={arg.step} type="number" step={1} min={0} />
+                                    <input
+                                        onInput={(e) => correctInputType(e, param.type)}
+                                        onChange={(e) => changeParam(index, 'max', e.currentTarget.value)}
+                                        value={param.max}
+                                        type="number"
+                                        step={param.type == 'float' ? 0.1 : 1}
+                                        min={0}
+                                    />
                                 </div>
                             );
                         }

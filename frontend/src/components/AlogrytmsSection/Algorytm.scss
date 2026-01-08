@@ -1,5 +1,4 @@
 .algorithm-card {
-  
     background: white;
     border: 2px solid #d1d5db;
     border-radius: 0.5rem;
@@ -64,12 +63,12 @@
 }
 
 .param-labels .label-text {
-    width: 4rem;
+    width: 7.5em;
     text-align: center;
 }
 
 .param-labels .separator {
-    width: 0.5rem;
+    width: 0.8rem;
 }
 
 .param-row {
@@ -88,7 +87,7 @@
 }
 
 .param-row input {
-    width: 4rem;
+    width: 6rem;
     padding: 0.25rem 0.5rem;
     border: 1px solid #d1d5db;
     border-radius: 0.25rem;
