@@ -1,7 +1,6 @@
-.FnSection{
+.FnSection {
     max-width: 1400px;
     margin: 0 auto;
-
 
     &__section {
         background: white;
@@ -17,29 +16,31 @@
         gap: 1rem;
     }
 
-    &__highlight{
+    &__highlight {
         display: block;
         width: fit-content;
         position: relative;
         z-index: 1;
-        &::before{
-            content: "";
+        &::before {
+            content: '';
             position: absolute;
-            bottom:0;
-            left:0;
+            bottom: 0;
+            left: 0;
             width: 100%;
             height: 20%;
             z-index: -1;
-            
-            background-color:  #10b981;
+
+            background-color: #10b981;
         }
     }
 
-    &__form-group{
+    &__form-group {
         display: flex;
         flex-direction: column;
 
-        input, select, button {
+        input,
+        select,
+        button {
             width: 100%;
             padding: 0.5rem 1rem;
             border: 2px solid #d1d5db;
@@ -48,20 +49,20 @@
             transition: all 0.2s;
         }
 
-        input:focus, select:focus {
+        input:focus,
+        select:focus {
             outline: none;
             border-color: #3b82f6;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
 
-        input{
-            width: 80%; 
+        input {
+            width: 80%;
         }
 
-        button{
+        button {
             width: 10%;
         }
-
 
         label {
             font-size: 1rem;
@@ -72,14 +73,11 @@
     }
 }
 
-
-
-
-.CustomFn{
+.CustomFn {
     z-index: 1000;
-    position: absolute;
-    top:0;
-    left:0;
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     background-color: rgba(128, 128, 128, 0.608);
@@ -87,27 +85,47 @@
     justify-content: center;
     align-items: center;
 
-    &--show{
+    &--show {
         display: flex;
     }
 
-    &__section{
+    h4 {
+        font-size: 40px;
+    }
+
+    &__section {
         background-color: white;
         position: relative;
-        font-size:40px;
-        padding:20px 40px;
+
+        padding: 20px 40px;
     }
 
-    &__cross{
+    &__rangeInputs {
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+
+    &__rangeLabel {
+        font-size: 1.5rem;
+    }
+
+    &__rangeInput {
+        font-size: 1.2rem;
+    }
+
+    &__cross {
         cursor: pointer;
-        position:absolute;
-        top:10px;
+        position: absolute;
+        top: 10px;
         right: 10px;
-        background:none;
-        border:none
+        background: none;
+        border: none;
     }
 
-    &__btn-load, textarea{
+    &__btn-load,
+    textarea {
         width: 100%;
         padding: 0.5rem 1rem;
         border: 2px solid #d1d5db;
@@ -116,6 +134,3 @@
         transition: all 0.2s;
     }
 }
-
-
-

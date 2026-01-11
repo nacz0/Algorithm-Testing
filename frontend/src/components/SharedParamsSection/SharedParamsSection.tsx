@@ -3,11 +3,13 @@ import type { ParamTypes } from '../../interfaces';
 interface Props {
     sharedAlgsParams: ParamTypes[];
     setSharedAlgsParams: React.Dispatch<React.SetStateAction<ParamTypes[]>>;
+    isStarted: boolean;
 }
 
-export function SharedParamsSection({ sharedAlgsParams, setSharedAlgsParams }: Props) {
+export function SharedParamsSection({ sharedAlgsParams, setSharedAlgsParams, isStarted }: Props) {
     const changeParam = (paramIndex: number, type: 'min' | 'max' | 'value', value: string) => {
         // @ts-ignore
+
         setSharedAlgsParams((params) => {
             const sharedAlgsParamsCopy = JSON.parse(JSON.stringify(params));
             sharedAlgsParamsCopy[paramIndex][type] = Number(value);
@@ -44,6 +46,7 @@ export function SharedParamsSection({ sharedAlgsParams, setSharedAlgsParams }: P
                                     type="number"
                                     min={0}
                                     step={param.type == 'float' ? 0.1 : 1}
+                                    disabled={isStarted}
                                 />
                             </div>
                         );
@@ -58,6 +61,7 @@ export function SharedParamsSection({ sharedAlgsParams, setSharedAlgsParams }: P
                                     type="number"
                                     step={1}
                                     min={0}
+                                    disabled={isStarted}
                                 />
                                 <span className="separator">-</span>
                                 <input
@@ -67,6 +71,7 @@ export function SharedParamsSection({ sharedAlgsParams, setSharedAlgsParams }: P
                                     type="number"
                                     step={1}
                                     min={0}
+                                    disabled={isStarted}
                                 />
                             </div>
                         );

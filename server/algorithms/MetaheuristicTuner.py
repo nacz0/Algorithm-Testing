@@ -15,6 +15,7 @@ from algorithms.GeneticAlgorithm import (
     gaussian_mutation,
     uniform_mutation
 )
+
 from algorithms.plotConvergence import plot_convergence
 from algorithms.animateAlgorithms import animate_algorithm
 
@@ -277,27 +278,36 @@ class MetaheuristicTuner:
     # GENEROWANIE WYKRESU I ANIMACJI
     # ============================================================
     def generate_figures(self, best, alg, dim, selected_funcs):
+        print(dim)
         figure = {}
-        for f_name in selected_funcs:
-            figure[f_name] = {}
-            meta = self.test_functions[f_name]
-            func = meta["func"]
-            bounds = meta["bounds"]
+        for fn in selected_funcs:
+            fn_name = fn["name"]
+            figure = {}
+            func = fn["code"]
+            bounds = fn["bounds"]
+            print("Generating figures for", alg, "on", fn_name)
             if alg == "ABC":
                 _, _, convergence_curve, positions_log = artificial_bee_colony(best['n_bees'], dim, bounds, best['max_iter'], func, limit=None)
             if alg == "Bat":
-                _, _, convergence_curve, positions_log = bat_algorithm(func, best['n_bats'], bounds, best['max_iter'], dim, best['alpha'], best['gamma'], (best['f_bounds_min'], best['f_bounds_max']))
+                _, _, convergence_curve, positions_log = bat_algorithm(
+                    fn=func,
+                    n_bats=best['n_bats'],
+                    bounds=bounds,
+                    alpha=best['alpha'],
+                    gamma=best['gamma'],
+                    f_bounds=(best['f_bounds_min'], best['f_bounds_max']),
+                    max_iter=best['max_iter'],
+                    dims=dim)
             if alg == "Genetic":
                 crossover = (arithmetic_crossover if best['crossover_type'] == 0 else single_point_crossover)
                 mutation = (gaussian_mutation if best['mutation_type'] == 0 else uniform_mutation)
                 _, _, convergence_curve, positions_log = genetic_algorithm(best['pop_size'], dim, bounds, best['max_generations'], func, best['crossover_rate'], best['mutation_rate'], best['mutation_scale'], best['elitism_rate'], best['tournament_size'], crossover, mutation)
  
-            convergence_plot_base64 = plot_convergence(convergence_curve, alg, f_name)
-            figure[f_name]['convergence_plot'] = convergence_plot_base64
+            convergence_plot_base64 = plot_convergence(convergence_curve, alg, fn_name)
+            figure['convergence_plot'] = convergence_plot_base64
             if dim == 2:
                 animation_base64 = animate_algorithm(positions_log, [bounds, bounds], func)
-                figure[f_name]['animation'] = animation_base64
-
+                figure['animation'] = animation_base64
         return figure
 
     # ============================================================
@@ -348,14 +358,11 @@ class MetaheuristicTuner:
                         "current_algorithm_index": i,
                         "selected_algorithms": selected
                     }, f)
-                return None
+                return None, None
             
             if best == "stop":
-                return None
+                return None, None
             
-           
-
-
             results[alg] = best
 
             # zapis wyniku
@@ -372,6 +379,12 @@ class MetaheuristicTuner:
                 if os.path.exists(path):
                     os.remove(path)
 
+        figures = {}
+        for alg in selected:
+            if alg in results:  # Tylko dla ukończonych algorytmów
+                figure = self.generate_figures(results[alg], alg, dim, selected_funcs)
+                figures[alg] = figure
+
         # ====== SPRZĄTANIE ======
         if os.path.exists(self.tuner_state_file):
             os.remove(self.tuner_state_file)
@@ -382,5 +395,5 @@ class MetaheuristicTuner:
             if os.path.exists(path):
                 os.remove(path)
 
-        figures = ["test"]
+        print("figures:", figures)
         return results, figures

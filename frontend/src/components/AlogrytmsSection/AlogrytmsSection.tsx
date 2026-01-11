@@ -1,24 +1,24 @@
-
-import "./AlgorytmsSection.scss"
+import './AlgorytmsSection.scss';
 import Alogrytm from './Algorytm';
-import type { AlgorithmData } from "../../interfaces";
+import type { AlgorithmData } from '../../interfaces';
 
-
-interface Props{
+interface Props {
     algorithmData: AlgorithmData[];
     setAlgorithmData: (a: AlgorithmData[]) => void;
+    isStarted: boolean;
 }
 
-const AlogrytmsSection = ({ algorithmData, setAlgorithmData}: Props) => {
+const AlogrytmsSection = ({ algorithmData, setAlgorithmData, isStarted }: Props) => {
     return (
         <div>
             <h2>Algorytmy:</h2>
             <div className="AlogrytmsSection">
-                {algorithmData.map((data, index) => <Alogrytm algIndex={index} algorithmData={data} setAlgorithmData={setAlgorithmData}/>)}
-                
+                {algorithmData.map((data, index) => (
+                    <Alogrytm algIndex={index} isStarted={isStarted} algorithmData={data} setAlgorithmData={setAlgorithmData} />
+                ))}
             </div>
         </div>
     );
-}
+};
 
 export default AlogrytmsSection;

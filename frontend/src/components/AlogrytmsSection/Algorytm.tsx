@@ -5,6 +5,7 @@ interface Props {
     algorithmData: AlgorithmData;
     setAlgorithmData: (a: AlgorithmData[]) => void;
     algIndex: number;
+    isStarted: boolean;
 }
 
 const correctInputType = (e: any, type: 'int' | 'float') => {
@@ -17,7 +18,7 @@ const correctInputType = (e: any, type: 'int' | 'float') => {
     }
 };
 
-const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex }: Props) => {
+const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex, isStarted }: Props) => {
     const changeParam = (paramIndex: number, type: 'min' | 'max' | 'value', value: string) => {
         // @ts-ignore
         setAlgorithmData((algsParams) => {
@@ -40,7 +41,7 @@ const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex }: Props) => {
         <div className="algorithm-card">
             <div className="algorithm-header">
                 <h3>{algorithmData.name} algorithm</h3>
-                <div onClick={() => toggleState()} className={`toggle-switch ${algorithmData.isUsed && 'active'}`} data-algo="bat">
+                <div onClick={() => !isStarted && toggleState()} className={`toggle-switch ${algorithmData.isUsed && 'active'}`} data-algo="bat">
                     <div className="toggle-slider"></div>
                 </div>
             </div>
@@ -70,6 +71,7 @@ const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex }: Props) => {
                                         type="number"
                                         min={0}
                                         step={param.type == 'float' ? 0.1 : 1}
+                                        disabled={isStarted}
                                     />
                                 </div>
                             );
@@ -88,6 +90,7 @@ const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex }: Props) => {
                                         type="number"
                                         step={param.type == 'float' ? 0.1 : 1}
                                         min={0}
+                                        disabled={isStarted}
                                     />
                                     <span className="separator">-</span>
                                     <input
@@ -97,6 +100,7 @@ const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex }: Props) => {
                                         type="number"
                                         step={param.type == 'float' ? 0.1 : 1}
                                         min={0}
+                                        disabled={isStarted}
                                     />
                                 </div>
                             );

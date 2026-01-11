@@ -1,17 +1,19 @@
 import { useRef, useState } from 'preact/hooks';
 import './FnSection.scss';
-
 import type { FnData } from '../../interfaces.ts';
 
 interface Props {
     fnsData: FnData[];
     setFn: (arg: FnData) => void;
     selectedFn: FnData;
+    isStarted: boolean;
 }
 
-const CustomFnSection = ({ fnsData, setFn, selectedFn }: Props) => {
+const CustomFnSection = ({ fnsData, setFn, selectedFn, isStarted }: Props) => {
     const customFnInputContainer = useRef<HTMLDivElement>(null);
     const textAreaEl = useRef<HTMLTextAreaElement>(null);
+    const lowerRangeEl = useRef<HTMLInputElement>(null);
+    const upperRangeEl = useRef<HTMLInputElement>(null);
     const [isCustomInputShow, setIsCustomInputShow] = useState(false);
 
     const setFnFromInput = () => {
@@ -24,8 +26,13 @@ const CustomFnSection = ({ fnsData, setFn, selectedFn }: Props) => {
         const matches = [...code.matchAll(regexPython)];
 
         const fnName = matches[0][1];
+
+        const lowerRange = lowerRangeEl.current?.value ? parseFloat(lowerRangeEl.current.value) : -10;
+        const upperRange = upperRangeEl.current?.value ? parseFloat(upperRangeEl.current.value) : 10;
+
         setIsCustomInputShow(false);
-        setFn({ name: fnName, code: code, isCustom: true, bounds: [-10, 10] });
+        setFn({ name: fnName, code: code, isCustom: true, bounds: [lowerRange, upperRange] });
+        console.log({ name: fnName, code: code, isCustom: true, bounds: [lowerRange, upperRange] });
     };
 
     const setBuildInFn = (e: any) => {
@@ -43,6 +50,16 @@ const CustomFnSection = ({ fnsData, setFn, selectedFn }: Props) => {
                         x
                     </button>
                     <textarea ref={textAreaEl} rows={10}></textarea> <br />
+                    <br />
+                    <div className="CustomFn__rangeInputs">
+                        <label className="CustomFn__rangeLabel">
+                            Min: <input ref={lowerRangeEl} type="number" className="CustomFn__rangeInput" placeholder="Lower range" />
+                        </label>
+                        <label className="CustomFn__rangeLabel">
+                            Max: <input ref={upperRangeEl} type="number" className="CustomFn__rangeInput" placeholder="Upper range" />
+                        </label>
+                    </div>
+                    <br />
                     <button onClick={() => setFnFromInput()} className="CustomFn__btn-load">
                         Ładuj
                     </button>

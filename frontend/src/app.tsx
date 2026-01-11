@@ -18,7 +18,7 @@ export function App() {
     const [algorithmsData, setAlgorithmsData] = useState<AlgorithmData[]>([]);
     const [sharedAlgsParams, setSharedAlgsParams] = useState<ParamTypes[]>([]);
     const [notifyData, setNotifyData] = useState({ msg: '', color: '', id: 0 });
-    const [result, setResult] = useState<any>({ result: {}, figures: [] });
+    const [results, setResults] = useState<any>({ result: {}, figures: [] });
 
     const [isPaused, setIsPaused] = useState<boolean>(false);
     const [isStarted, setIsStarted] = useState<boolean>(false);
@@ -69,7 +69,7 @@ export function App() {
                 setIsStarted(false);
 
                 addNewNotification('Finished', 'green');
-                setResult(lastMessage.message);
+                setResults(lastMessage.message);
                 break;
 
             case 'get_params':
@@ -87,8 +87,6 @@ export function App() {
                 if (localStorage.getItem('functionsData') == null) {
                     setFunctionsData(lastMessage.message.functions_data as FnData[]);
                 } else {
-                    console.log(JSON.parse(localStorage.getItem('functionsData') || '[]'));
-
                     setFunctionsData(JSON.parse(localStorage.getItem('functionsData') || '[]'));
                     setSelectedFnData(JSON.parse(localStorage.getItem('functionsData') || '[]')[0]);
                 }
@@ -140,9 +138,9 @@ export function App() {
             <ConnectionIndicator status={readyState} />
             <NotificationManager newMessage={notifyData.msg} color={notifyData.color} id={notifyData.id} />
             <h1>Testowanie algorytmów heurystycznych</h1>
-            <CustomFnSection setFn={setSelectedFnData} selectedFn={selectedFnData} fnsData={functionsData || []} />
-            <SharedParamsSection sharedAlgsParams={sharedAlgsParams} setSharedAlgsParams={setSharedAlgsParams} />
-            <AlgorytmsSection algorithmData={algorithmsData} setAlgorithmData={setAlgorithmsData} />
+            <CustomFnSection isStarted={isStarted} setFn={setSelectedFnData} selectedFn={selectedFnData} fnsData={functionsData || []} />
+            <SharedParamsSection isStarted={isStarted} sharedAlgsParams={sharedAlgsParams} setSharedAlgsParams={setSharedAlgsParams} />
+            <AlgorytmsSection isStarted={isStarted} algorithmData={algorithmsData} setAlgorithmData={setAlgorithmsData} />
             <ControlPanel sendAndShowNotification={sendAndShowNotification} isStarted={isStarted} isPaused={isPaused} />
             {isStarted && (
                 <div id="progress-container" className="progress-container hidden">
@@ -150,7 +148,8 @@ export function App() {
                     <ProgressBar label="Iteracja" progress={progress} />
                 </div>
             )}
-            <Raport result={result} />
+
+            <Raport results={results} />
         </div>
     );
 }

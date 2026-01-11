@@ -35,19 +35,13 @@ class SimulationManager:
         """
         Zamienia string na obiekt funkcji i sprawdza błędy składni.
         """
-        # 1. Słowniki zasięgu (izolacja kodu)
-        # Dodajemy math, aby funkcje typu rastrigin mogły z niego korzystać
+
         globals_dict = {"math": math}
         locals_dict = {}
 
         try:
-            # 2. Próba wykonania stringu
             exec(code_string, globals_dict, locals_dict)
-            
-            # 3. Wyciągnięcie funkcji ze słownika locals_dict
-            # Pobieramy pierwszą rzecz, która jest funkcją (callable)
             func = next((v for v in locals_dict.values() if callable(v)), None)
-            
             if func is None:
                 raise ValueError("W podanym kodzie nie znaleziono definicji funkcji (brak 'def').")
                 
@@ -118,7 +112,7 @@ class SimulationManager:
             self._current_task = asyncio.create_task(self.start())
         elif command == "pause":
             print("Pausing simulation")
-            self.isPaused = "paused"
+            self.isPaused = True
         elif command == "stop":
             print("Stopping simulation")
             self.isRunning = False
@@ -141,7 +135,6 @@ class SimulationManager:
                 pass
 
         await self.send("start","started successfully")
-        print("Selected function code:", self.selected_function["code"])
         if type(self.selected_function["code"]) == str:
             func = self.string_to_function(self.selected_function["code"])
             if func is None:
@@ -149,12 +142,12 @@ class SimulationManager:
                 return
             self.selected_function["code"] = func
 
-        print(self.selected_function)
+   
         
         if self.metaheuristic_tuner is None:
             async def _progress_send_fn(progress, type):
                 await self.send(type="progress", message = ({"type": type, "progress": progress}))
-                print(f"Progress: {progress}")
+            
 
             async def _stop_check_fn():
                 if not self.isRunning:
@@ -162,9 +155,9 @@ class SimulationManager:
                 return not self.isRunning
             
             async def _pause_check_fn():
-                if self.isPaused == "paused":
+                if self.isPaused:
                     print("Pause detected")
-                return self.isPaused == "paused"
+                return self.isPaused
             
             self.metaheuristic_tuner = MetaheuristicTuner(self.algorithmsData, 
                                                           progress_send_fn=_progress_send_fn,
@@ -173,13 +166,15 @@ class SimulationManager:
 
         selected = list(filter(lambda alg: alg["isUsed"], self.algorithmsData))
 
-       
-        print([alg["name"] for alg in selected])
+        dim = next((p["value"] for p in self.shared_params_data if p["name"] == "Dimentions"), None)
+        iterations = next((p["value"] for p in self.shared_params_data if p["name"] == "Iterations"), None)
+      
+        # TODO: What is the perpose of iterations here?
         results, figures = await self.metaheuristic_tuner.tune_algorithms(
             selected=[alg["name"] for alg in selected],
             selected_funcs=[self.selected_function],
-            dim=5,
-            iterations=30, 
+            dim=dim,
+            iterations=iterations, 
             R=20, 
         )
 
@@ -191,5 +186,4 @@ class SimulationManager:
             await self.send(type="stop", message = "Stoped successfully")
             return
 
-        print("Results:", results)
         await self.websocket.send_json({"type":"finished", "message":{"result": results, "figures": figures}})
