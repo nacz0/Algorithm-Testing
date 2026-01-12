@@ -1,0 +1,29 @@
+{
+  "shared_params": [
+    { "name": "Agents", "type": "int" },
+    { "name": "Iterations", "type": "int" },
+    { "name": "Dimentions", "type": "int" }
+  ],
+  "algorithms": [
+    {
+      "name": "Bat alhorithm",
+      "params": [
+        { "name": "Alpha", "type": "int" },
+        { "name": "Gamma", "type": "int" },
+        { "name": "Frequancy", "type": "int" }
+      ]
+    },
+    {
+      "name": "Genetic algorytm",
+      "params": [
+        { "name": "Alpha", "type": "int" },
+        { "name": "Gamma", "type": "int" },
+        { "name": "Frequancy", "type": "int" }
+      ]
+    },
+    {
+      "name": "ABC alhorithm",
+      "params": []
+    }
+  ]
+}

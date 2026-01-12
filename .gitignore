@@ -1,5 +1,5 @@
 # JSON files
-*.json
+
 
 # Python
 __pycache__/

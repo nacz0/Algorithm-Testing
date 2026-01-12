@@ -1,0 +1,38 @@
+{
+  "shared_params": [
+    { "name": "Iterations", "type": "int", "range": "value" },
+    { "name": "Dimentions", "type": "int", "range": "value" }
+  ],
+  "algorithms": [
+    {
+      "name": "Bat",
+      "params": [
+        { "name": "n_bats", "type": "int", "range": "min-max" },
+        { "name": "max_iter", "type": "int", "range": "min-max" },
+        { "name": "alpha", "type": "float", "range": "min-max" },
+        { "name": "gamma", "type": "float", "range": "min-max" },
+        { "name": "f_bounds_min", "type": "float", "range": "min-max" },
+        { "name": "f_bounds_max", "type": "float", "range": "min-max" }
+      ]
+    },
+    {
+      "name": "Genetic",
+      "params": [
+        { "name": "pop_size", "type": "int", "range": "min-max" },
+        { "name": "max_generations", "type": "int", "range": "min-max" },
+        { "name": "crossover_rate", "type": "float", "range": "min-max" },
+        { "name": "mutation_rate", "type": "float", "range": "min-max" },
+        { "name": "mutation_scale", "type": "float", "range": "min-max" },
+        { "name": "elitism_rate", "type": "float", "range": "min-max" },
+        { "name": "tournament_size", "type": "int", "range": "min-max" }
+      ]
+    },
+    {
+      "name": "ABC",
+      "params": [
+        { "name": "n_bees", "type": "int", "range": "min-max" },
+        { "name": "max_iter", "type": "int", "range": "min-max" }
+      ]
+    }
+  ]
+}

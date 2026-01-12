@@ -1,0 +1,27 @@
+[
+  {
+    "name": "Sphere",
+    "bounds": [-5.12, 5.12],
+    "code": "def sphere(x):\n    return sum(i**2 for i in x)"
+  },
+  {
+    "name": "Step",
+    "bounds": [-100, 100],
+    "code": "def step(x):\n    return sum(int(i) for i in x)"
+  },
+  {
+    "name": "Zakharov",
+    "bounds": [-5, 10],
+    "code": "def zakharov(x):\n    s1 = sum(i**2 for i in x)\n    s2 = sum(0.5 * (j + 1) * x[j] for j in range(len(x)))\n    return s1 + s2**2 + s2**4"
+  },
+  {
+    "name": "Rastrigin",
+    "bounds": [-5.12, 5.12],
+    "code": "def rastrigin(x):\n    A = 10\n    D = len(x)\n    return A * D + sum(i**2 - A * math.cos(2 * math.pi * i) for i in x)"
+  },
+  {
+    "name": "Rosenbrock",
+    "bounds": [-5, 10],
+    "code": "def rosenbrock(x):\n    return sum(100 * (x[i+1] - x[i]**2)**2 + (x[i] - 1)**2 for i in range(len(x) - 1))"
+  }
+]
