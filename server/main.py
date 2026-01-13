@@ -13,7 +13,12 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_json()
             await manager.handle_command(data)
     except WebSocketDisconnect:
-        manager.disconnect()
+        manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WS error: {e}")
+        manager.disconnect(websocket)
+    finally:
+        manager.disconnect(websocket)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -154,7 +154,8 @@ class MetaheuristicTuner:
     # ============================================================
 
     def evaluate_params(self, params, runner, selected_funcs, dim, R=20):
-        sigmas = []
+        """Evaluate parameters using combined metric: mean performance + weighted std for stability."""
+        scores = []
 
         for fmeta in selected_funcs:
             func = fmeta["code"]
@@ -166,9 +167,14 @@ class MetaheuristicTuner:
                 random.seed(r)
                 results.append(runner(params, func, bounds, dim))
 
-            sigmas.append(np.std(results))
+            mean_val = np.mean(results)
+            std_val = np.std(results)
+            # Combined metric: prioritize low mean (good performance) with stability bonus
+            # Weight std by 0.1 to make mean more important but still reward consistency
+            combined_score = mean_val + 0.1 * std_val
+            scores.append(combined_score)
 
-        return np.mean(sigmas)
+        return np.mean(scores)
 
     # ============================================================
     # KONWERSJA WEKTORA CMA → PARAMETRY
@@ -188,8 +194,8 @@ class MetaheuristicTuner:
             params[name] = val
             i += 1
 
-        # parametry kategoryczne GA
-        if algorithm == "GA":
+        # parametry kategoryczne dla Genetic Algorithm
+        if algorithm == "Genetic":
             crossover_raw = int(round(x[i]))
             mutation_raw  = int(round(x[i+1]))
 
@@ -205,6 +211,14 @@ class MetaheuristicTuner:
     # TUNER JEDNEGO ALGORYTMU
     # ============================================================
 
+    def _compute_config_hash(self, algorithm, selected_funcs, dim, iterations, R):
+        """Compute a hash of current configuration for checkpoint validation."""
+        import hashlib
+        config_str = f"{algorithm}_{dim}_{iterations}_{R}"
+        config_str += "_" + "_".join(sorted([f['name'] for f in selected_funcs]))
+        config_str += "_" + str(sorted(self.param_spaces.get(algorithm, {}).items()))
+        return hashlib.md5(config_str.encode()).hexdigest()
+
     async def tune_single_algorithm(self, algorithm, selected_funcs, dim,
                               iterations=30, R=20):
 
@@ -214,24 +228,38 @@ class MetaheuristicTuner:
         checkpoint_json = os.path.join(self.folder, f"checkpoint_{algorithm}.json")
         checkpoint_pkl  = os.path.join(self.folder, f"checkpoint_{algorithm}.pkl")
 
+        # Compute config hash for validation
+        config_hash = self._compute_config_hash(algorithm, selected_funcs, dim, iterations, R)
+
         es = None
         start_iter = 0
 
         # ====== WZNOWIENIE ======
         if os.path.exists(checkpoint_json) and os.path.exists(checkpoint_pkl):
-            print(f"Wznawiam tuner {algorithm} z checkpointu...")
-
             with open(checkpoint_json, "r") as f:
-                start_iter = json.load(f)["current_iteration"]
+                checkpoint_data = json.load(f)
+                saved_hash = checkpoint_data.get("config_hash", "")
+                start_iter = checkpoint_data["current_iteration"]
+            
+            # Validate checkpoint matches current configuration
+            if saved_hash == config_hash:
+                print(f"Wznawiam tuner {algorithm} z checkpointu...")
+                with open(checkpoint_pkl, "rb") as f:
+                    es = pickle.load(f)
+            else:
+                print(f"Checkpoint dla {algorithm} niekompatybilny z aktualną konfiguracją - startuję od początku...")
+                start_iter = 0
+                es = None
+                # Clean up incompatible checkpoints
+                os.remove(checkpoint_json)
+                os.remove(checkpoint_pkl)
 
-            with open(checkpoint_pkl, "rb") as f:
-                es = pickle.load(f)
-
-        else:
+        if es is None:
             print(f"Startuję tuner {algorithm} od początku...")
 
             base_dim = len(param_space)
-            extra_dims = 2 if algorithm == "GA" else 0
+            # Genetic algorithm has 2 extra categorical params (crossover_type, mutation_type)
+            extra_dims = 2 if algorithm == "Genetic" else 0
 
             x0 = [(pmin + pmax) / 2 for (pmin, pmax, _) in param_space.values()]
             for _ in range(extra_dims):
@@ -267,7 +295,8 @@ class MetaheuristicTuner:
 
             with open(checkpoint_json, "w") as f:
                 json.dump({
-                    "current_iteration": it + 1
+                    "current_iteration": it + 1,
+                    "config_hash": config_hash
                 }, f)
 
         best_vector = es.result.xbest
@@ -299,15 +328,17 @@ class MetaheuristicTuner:
                     max_iter=best['max_iter'],
                     dims=dim)
             if alg == "Genetic":
-                crossover = (arithmetic_crossover if best['crossover_type'] == 0 else single_point_crossover)
-                mutation = (gaussian_mutation if best['mutation_type'] == 0 else uniform_mutation)
+                crossover = (arithmetic_crossover if best['crossover_type'] == "arithmetic" else single_point_crossover)
+                mutation = (gaussian_mutation if best['mutation_type'] == "gaussian" else uniform_mutation)
                 _, _, convergence_curve, positions_log = genetic_algorithm(best['pop_size'], dim, bounds, best['max_generations'], func, best['crossover_rate'], best['mutation_rate'], best['mutation_scale'], best['elitism_rate'], best['tournament_size'], crossover, mutation)
  
             convergence_plot_base64 = plot_convergence(convergence_curve, alg, fn_name)
             figure['convergence_plot'] = convergence_plot_base64
             if dim == 2:
-                animation_base64 = animate_algorithm(positions_log, [bounds, bounds], func)
-                figure['animation'] = animation_base64
+                animation_data = animate_algorithm(positions_log, [bounds, bounds], func)
+                figure['animation'] = animation_data['gif']
+                figure['first_frame'] = animation_data['first_frame']
+                figure['last_frame'] = animation_data['last_frame']
         return figure
 
     # ============================================================

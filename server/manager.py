@@ -8,7 +8,7 @@ from algorithms.MetaheuristicTuner import MetaheuristicTuner
 class SimulationManager:
     def __init__(self):
         
-        self.websocket = None
+        self.active_connections = []
         self.isPaused = False
         self.isRunning = False
         self._current_task = None
@@ -18,16 +18,49 @@ class SimulationManager:
         self._load_params()
 
     async def connect(self, ws):
-        self.websocket = ws
         await ws.accept()
+        self.active_connections.append(ws)
+        # Send current state to the newly connected client
+        await self._send_params_to(ws)
 
-    def disconnect(self):
-        self.websocket = None
-        self.isRunning = False
+    def disconnect(self, ws):
+        if ws in self.active_connections:
+            self.active_connections.remove(ws)
 
     async def send(self, type, message):
-        if self.websocket:
-            await self.websocket.send_json({"type":type, "message": message})
+        if not self.active_connections:
+            return
+            
+        payload = {"type": type, "message": message}
+        
+        # Broadcast to all active connections
+        disconnected = []
+        for ws in self.active_connections:
+            try:
+                await ws.send_json(payload)
+            except Exception as e:
+                print(f"Error sending to websocket: {e}")
+                disconnected.append(ws)
+        
+        # Clean up any connections that failed
+        for ws in disconnected:
+            self.disconnect(ws)
+
+    async def _send_params_to(self, ws):
+        try:
+            await ws.send_json({
+                "type": "get_params",
+                "message": {
+                    "algorithms": self.algorithmsData,
+                    "shared_params": self.shared_params_data,
+                    "functions_data": self.functionsData,
+                    "isStarted": self.isRunning,
+                    "isPaused": self.isPaused,
+                }
+            })
+        except Exception as e:
+            print(f"Error sending initial params: {e}")
+            self.disconnect(ws)
 
 
 
@@ -144,30 +177,59 @@ class SimulationManager:
 
    
         
-        if self.metaheuristic_tuner is None:
-            async def _progress_send_fn(progress, type):
-                await self.send(type="progress", message = ({"type": type, "progress": progress}))
-            
+        # Always recreate tuner with current parameters to ensure fresh configuration
+        async def _progress_send_fn(progress, type):
+            await self.send(type="progress", message = ({"type": type, "progress": progress}))
+        
 
-            async def _stop_check_fn():
-                if not self.isRunning:
-                    print("Stop detected")
-                return not self.isRunning
-            
-            async def _pause_check_fn():
-                if self.isPaused:
-                    print("Pause detected")
-                return self.isPaused
-            
-            self.metaheuristic_tuner = MetaheuristicTuner(self.algorithmsData, 
-                                                          progress_send_fn=_progress_send_fn,
-                                                          stop_check_fn=_stop_check_fn,
-                                                          pause_check_fn=_pause_check_fn)
+        async def _stop_check_fn():
+            if not self.isRunning:
+                print("Stop detected")
+            return not self.isRunning
+        
+        async def _pause_check_fn():
+            if self.isPaused:
+                print("Pause detected")
+            return self.isPaused
+        
+        self.metaheuristic_tuner = MetaheuristicTuner(self.algorithmsData, 
+                                                      progress_send_fn=_progress_send_fn,
+                                                      stop_check_fn=_stop_check_fn,
+                                                      pause_check_fn=_pause_check_fn)
 
         selected = list(filter(lambda alg: alg["isUsed"], self.algorithmsData))
 
+        # Validate: at least one algorithm must be selected
+        if not selected:
+            await self.send(type="error", message="No algorithms selected. Please enable at least one algorithm.")
+            self.isRunning = False
+            return
+
+        # Validate and fix parameter bounds (swap if min > max)
+        for alg in self.algorithmsData:
+            for param in alg.get("params", []):
+                if "min" in param and "max" in param:
+                    if param["min"] > param["max"]:
+                        param["min"], param["max"] = param["max"], param["min"]
+                        print(f"Warning: Swapped min/max for {alg['name']}.{param['name']}")
+                    # Ensure integer params have valid range (at least 1 for counts)
+                    if param.get("type") == "int" and param["min"] < 1:
+                        if param["name"] in ["n_bats", "n_bees", "pop_size", "tournament_size"]:
+                            param["min"] = 1
+                            print(f"Warning: Set min=1 for {alg['name']}.{param['name']} (count parameter)")
+
         dim = next((p["value"] for p in self.shared_params_data if p["name"] == "Dimentions"), None)
         iterations = next((p["value"] for p in self.shared_params_data if p["name"] == "Iterations"), None)
+
+        # Validate dimensions and iterations
+        if dim is None or dim < 1:
+            await self.send(type="error", message="Invalid dimensions value. Must be at least 1.")
+            self.isRunning = False
+            return
+        if iterations is None or iterations < 1:
+            await self.send(type="error", message="Invalid iterations value. Must be at least 1.")
+            self.isRunning = False
+            return
       
         # TODO: What is the perpose of iterations here?
         results, figures = await self.metaheuristic_tuner.tune_algorithms(
@@ -186,4 +248,4 @@ class SimulationManager:
             await self.send(type="stop", message = "Stoped successfully")
             return
 
-        await self.websocket.send_json({"type":"finished", "message":{"result": results, "figures": figures}})
+        await self.send(type="finished", message={"result": results, "figures": figures})

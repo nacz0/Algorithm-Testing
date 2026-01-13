@@ -39,6 +39,25 @@ const Raport = ({ results }: Props) => {
                                         </div>
                                     )}
 
+                                    {/* First and Last Frame Snapshots */}
+                                    {(results.figures[algoName].first_frame || results.figures[algoName].last_frame) && (
+                                        <div className="figure-card snapshots-container">
+                                            <h4>Iteration Snapshots:</h4>
+                                            <div className="snapshots-grid">
+                                                {results.figures[algoName].first_frame && (
+                                                    <div className="snapshot">
+                                                        <img src={'data:image/png;base64,' + results.figures[algoName].first_frame} alt={`${algoName} First Iteration`} />
+                                                    </div>
+                                                )}
+                                                {results.figures[algoName].last_frame && (
+                                                    <div className="snapshot">
+                                                        <img src={'data:image/png;base64,' + results.figures[algoName].last_frame} alt={`${algoName} Last Iteration`} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {/* Animation */}
                                     {results.figures[algoName].animation && (
                                         <div className="figure-card">

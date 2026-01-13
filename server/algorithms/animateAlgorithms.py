@@ -3,8 +3,9 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import base64
 import os
+from io import BytesIO
 
-def animate_algorithm(positions_log, bounds, objective_func, interval=200):
+def animate_algorithm(positions_log, bounds, objective_func, interval=500):
 
     # Przygotowanie siatki pod contour plot
     x = np.linspace(bounds[0][0], bounds[0][1], 200)
@@ -16,6 +17,29 @@ def animate_algorithm(positions_log, bounds, objective_func, interval=200):
         for j in range(X.shape[1]):
             Z[i, j] = objective_func(np.array([X[i, j], Y[i, j]]))
 
+    # Helper function to create a single frame snapshot
+    def create_snapshot(frame_idx, title_suffix=""):
+        fig_snap, ax_snap = plt.subplots(figsize=(7, 7))
+        ax_snap.contourf(X, Y, Z, levels=50, cmap='viridis')
+        ax_snap.set_xlim(bounds[0])
+        ax_snap.set_ylim(bounds[1])
+        positions = positions_log[frame_idx]
+        ax_snap.scatter(positions[:, 0], positions[:, 1], c='red', s=40)
+        ax_snap.set_title(f"Iteracja {frame_idx}{title_suffix}")
+        
+        # Save to buffer
+        buf = BytesIO()
+        fig_snap.savefig(buf, format='png', bbox_inches='tight')
+        buf.seek(0)
+        snapshot_base64 = base64.b64encode(buf.read()).decode('utf-8')
+        plt.close(fig_snap)
+        return snapshot_base64
+
+    # Generate first and last frame snapshots
+    first_frame_base64 = create_snapshot(0, " (początek)")
+    last_frame_base64 = create_snapshot(len(positions_log) - 1, " (koniec)")
+
+    # Create animation
     fig, ax = plt.subplots(figsize=(7, 7))
 
     # Tło: poziomice funkcji celu
@@ -46,4 +70,8 @@ def animate_algorithm(positions_log, bounds, objective_func, interval=200):
     plt.close(fig)
     os.remove("animation.gif")
 
-    return gif_base64
+    return {
+        "gif": gif_base64,
+        "first_frame": first_frame_base64,
+        "last_frame": last_frame_base64
+    }

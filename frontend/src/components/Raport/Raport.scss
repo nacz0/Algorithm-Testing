@@ -104,4 +104,24 @@
         border-radius: 0.25rem; // rounded
         border: 1px solid #d1d5db; // border-gray-300
     }
+
+    &.snapshots-container {
+        grid-column: 1 / -1; // Span full width in the grid
+
+        .snapshots-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+
+            .snapshot {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+
+                img {
+                    max-width: 100%;
+                }
+            }
+        }
+    }
 }
