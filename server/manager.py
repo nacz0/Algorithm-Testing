@@ -8,7 +8,7 @@ from algorithms.MetaheuristicTuner import MetaheuristicTuner
 class SimulationManager:
     def __init__(self):
         
-        self.websocket = None
+        self.clients: list = []  # Lista aktywnych połączeń WebSocket
         self.isPaused = False
         self.isRunning = False
         self._current_task = None
@@ -18,7 +18,7 @@ class SimulationManager:
         self._load_params()
 
         async def _progress_send_fn(progress, type):
-                await self.send(type="progress", message = ({"type": type, "progress": progress}))
+                await self.broadcast(type="progress", message = ({"type": type, "progress": progress}))
             
 
         async def _stop_check_fn():
@@ -38,16 +38,41 @@ class SimulationManager:
 
 
     async def connect(self, ws):
-        self.websocket = ws
+        """Dodaje nowego klienta do listy i akceptuje połączenie."""
         await ws.accept()
+        self.clients.append(ws)
+        print(f"Klient podłączony. Aktywnych klientów: {len(self.clients)}")
 
-    def disconnect(self):
-        self.websocket = None
-        self.isRunning = False
+    def disconnect(self, ws):
+        """Usuwa klienta z listy."""
+        if ws in self.clients:
+            self.clients.remove(ws)
+        print(f"Klient odłączony. Aktywnych klientów: {len(self.clients)}")
+        # Zatrzymaj symulację tylko jeśli nie ma żadnych klientów
+        if len(self.clients) == 0:
+            self.isRunning = False
 
-    async def send(self, type, message):
-        if self.websocket:
-            await self.websocket.send_json({"type":type, "message": message})
+    async def send(self, ws, type, message):
+        """Wysyła wiadomość do konkretnego klienta."""
+        try:
+            await ws.send_json({"type": type, "message": message})
+        except Exception as e:
+            print(f"Błąd wysyłania do klienta: {e}")
+            self.disconnect(ws)
+
+    async def broadcast(self, type, message):
+        """Wysyła wiadomość do wszystkich podłączonych klientów."""
+        disconnected = []
+        for client in self.clients:
+            try:
+                await client.send_json({"type": type, "message": message})
+            except Exception as e:
+                print(f"Błąd wysyłania do klienta: {e}")
+                disconnected.append(client)
+        
+        # Usuń odłączonych klientów
+        for client in disconnected:
+            self.disconnect(client)
 
 
 
@@ -104,8 +129,10 @@ class SimulationManager:
         self.functionsData = functionsData
         self.selected_function = functionsData[0]
 
-    async def _send_params(self):
+    async def _send_params(self, ws):
+        """Wysyła parametry do konkretnego klienta."""
         await self.send(
+            ws,
             type="get_params",
             message={
                 "algorithms": self.algorithmsData,
@@ -122,9 +149,10 @@ class SimulationManager:
         self.selected_function = data.get("selected_function", self.selected_function)  
 
 
-    async def handle_command(self, data):
+    async def handle_command(self, ws, data):
+        """Obsługuje polecenie od konkretnego klienta."""
         command = data.get("type").strip()
-        print(command)
+        print(f"Komenda od klienta: {command}")
         if command == "start":
             self._update_params(data)
             self.isRunning = True
@@ -137,12 +165,12 @@ class SimulationManager:
             print("Stopping simulation")
             if self.isPaused:
                 self.metaheuristic_tuner.delete_checkpoints()
-                await self.send(type="stop", message = "Stoped successfully")
+                await self.broadcast(type="stop", message="Stoped successfully")
             self.isRunning = False
             self.isPaused = False
             
         elif command == "get_params":
-            await self._send_params()
+            await self._send_params(ws)
 
 
     async def start(self):
@@ -156,11 +184,11 @@ class SimulationManager:
             except asyncio.CancelledError:
                 pass
 
-        await self.send("start","started successfully")
+        await self.broadcast(type="start", message="started successfully")
         if type(self.selected_function["code"]) == str:
             func = self.string_to_function(self.selected_function["code"])
             if func is None:
-                await self.send(type="error", message = "Function code has syntax errors.")
+                await self.broadcast(type="error", message="Function code has syntax errors.")
                 return
             self.selected_function["code"] = func
 
@@ -180,11 +208,11 @@ class SimulationManager:
         )
 
         if self.isPaused:
-            await self.send(type="pause", message = "Paused successfully")
+            await self.broadcast(type="pause", message="Paused successfully")
             return
 
         if not self.isRunning:
-            await self.send(type="stop", message = "Stoped successfully")
+            await self.broadcast(type="stop", message="Stoped successfully")
             return
 
-        await self.websocket.send_json({"type":"finished", "message":{"result": results, "figures": figures}})
+        await self.broadcast(type="finished", message={"result": results, "figures": figures})

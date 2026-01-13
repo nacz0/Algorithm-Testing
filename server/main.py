@@ -11,9 +11,9 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             data = await websocket.receive_json()
-            await manager.handle_command(data)
+            await manager.handle_command(websocket, data)
     except WebSocketDisconnect:
-        manager.disconnect()
+        manager.disconnect(websocket)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
