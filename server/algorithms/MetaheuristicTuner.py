@@ -23,7 +23,7 @@ from algorithms.objective_functions import sphere_function, rastrigin_function, 
 
 class MetaheuristicTuner:
 
-    def param_spaces(self, algorithm):
+    def param_spaces_fn(self, algorithm):
         new_param_space = {}
 
         for alg in  algorithm:
@@ -45,7 +45,7 @@ class MetaheuristicTuner:
         return new_param_space
 
 
-    def __init__(self, algorithmsData, progress_send_fn, pause_check_fn, stop_check_fn):
+    def __init__(self, progress_send_fn, pause_check_fn, stop_check_fn):
         self.progress_send_fn = progress_send_fn
         self.pause_check_fn = pause_check_fn
         self.stop_check_fn = stop_check_fn
@@ -56,30 +56,6 @@ class MetaheuristicTuner:
 
         # Plik globalnego stanu tunera
         self.tuner_state_file = os.path.join(self.folder, "tuner_state.json")
-
-        # ============================
-        # PARAMETRY ALGORYTMÓW
-        # (tylko liczbowe – GA bez kategorycznych)
-        # ============================
-        self.param_spaces = self.param_spaces(algorithmsData)
-
-        # ============================
-        # FUNKCJE TESTOWE
-        # ============================
-        self.test_functions = {
-            "sphere": {
-                "func": sphere_function,
-                "bounds": (-10, 10)
-            },
-            "rastrigin": {
-                "func": rastrigin_function,
-                "bounds": (-5.12, 5.12)
-            },
-            "rosenbrock": {
-                "func": rosenbrock_function,
-                "bounds": (-10, 10)
-            }
-        }
 
         # ============================
         # WRAPPERY ALGORYTMÓW
@@ -247,6 +223,7 @@ class MetaheuristicTuner:
                 return "pause"
             
             if await self.stop_check_fn():
+                
                 print(f"Zatrzymano tuner {algorithm} na iteracji {it}")
                 return "stop"
           
@@ -313,10 +290,15 @@ class MetaheuristicTuner:
     # ============================================================
     # TUNER WIELU ALGORYTMÓW
     # ============================================================
-
-    async def tune_algorithms(self, selected, selected_funcs, dim,
+    def delete_checkpoints(self):
+        # usuwamy checkpointy algorytmów
+        for file in os.listdir(self.folder):
+            os.remove(os.path.join(self.folder, file))
+            
+            
+    async def tune_algorithms(self, algorithmsData, selected, selected_funcs, dim,
                         iterations=30, R=20):
-
+        self.param_spaces = self.param_spaces_fn(algorithmsData)
         results = {}
 
         # ====== WZNOWIENIE GLOBALNE ======
@@ -340,6 +322,7 @@ class MetaheuristicTuner:
             await self.progress_send_fn(int(i/len(selected)*100), type="alg_progress")
 
             alg = selected[i]
+            print(alg)
             print(f"\n=== Zaczynam algorytm: {alg} ===")
 
             best = await self.tune_single_algorithm(
@@ -361,6 +344,7 @@ class MetaheuristicTuner:
                 return None, None
             
             if best == "stop":
+                self.delete_checkpoints()
                 return None, None
             
             results[alg] = best
@@ -395,5 +379,4 @@ class MetaheuristicTuner:
             if os.path.exists(path):
                 os.remove(path)
 
-        print("figures:", figures)
         return results, figures

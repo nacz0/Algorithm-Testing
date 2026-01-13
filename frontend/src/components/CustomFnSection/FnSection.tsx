@@ -41,6 +41,26 @@ const CustomFnSection = ({ fnsData, setFn, selectedFn, isStarted }: Props) => {
         setFn({ ...fnData, isCustom: false });
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Tab') {
+            e.preventDefault(); // Zatrzymaj domyślne wyjście z pola
+
+            const el = textAreaEl.current;
+            if (!el) return;
+
+            const start = el.selectionStart;
+            const end = el.selectionEnd;
+            const value = el.value;
+
+            // Wstawiamy tabulator (lub 4 spacje, zależy co wolisz w Pythonie)
+            const tabChar = '    '; // Używamy 4 spacji, co jest standardem w Pythonie
+            el.value = value.substring(0, start) + tabChar + value.substring(end);
+
+            // Ustawiamy kursor z powrotem na właściwym miejscu
+            el.selectionStart = el.selectionEnd = start + tabChar.length;
+        }
+    };
+
     return (
         <>
             <div ref={customFnInputContainer} className={`CustomFn ${isCustomInputShow && 'CustomFn--show'}`}>
@@ -49,7 +69,7 @@ const CustomFnSection = ({ fnsData, setFn, selectedFn, isStarted }: Props) => {
                     <button onClick={() => setIsCustomInputShow(false)} className="CustomFn__cross">
                         x
                     </button>
-                    <textarea ref={textAreaEl} rows={10}></textarea> <br />
+                    <textarea ref={textAreaEl} onKeyDown={handleKeyDown} spellcheck={false} rows={10}></textarea> <br />
                     <br />
                     <div className="CustomFn__rangeInputs">
                         <label className="CustomFn__rangeLabel">

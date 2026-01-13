@@ -3,33 +3,50 @@ import './Algorytm.scss';
 
 interface Props {
     algorithmData: AlgorithmData;
-    setAlgorithmData: (a: AlgorithmData[]) => void;
+    setAlgorithmData: (callback: (a: AlgorithmData[]) => AlgorithmData[]) => void;
     algIndex: number;
     isStarted: boolean;
 }
 
-const correctInputType = (e: any, type: 'int' | 'float') => {
-    console.log(e.currentTarget.value, type);
+// Ulepszona walidacja: tylko liczby i jedna kropka z max 5 miejscami po przecinku
+const validateAndCleanInput = (value: string, type: 'int' | 'float'): string => {
+    console.log(value, type);
 
     if (type === 'int') {
-        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
-    } else if (type === 'float') {
-        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9.]/g, '');
+        return value.replace(/[^0-9]/g, '');
+    } else {
+        // Pozwala na cyfry i jedną kropkę
+        let cleaned = value.replace(/[^0-9.]/g, '');
+        // Zapobiega wpisaniu więcej niż jednej kropki
+        const parts = cleaned.split('.');
+        if (parts.length > 2) {
+            cleaned = parts[0] + '.' + parts.slice(1).join('');
+        }
+        // Ograniczenie do 5 miejsc po przecinku
+        if (parts[1] && parts[1].length > 5) {
+            cleaned = parts[0] + '.' + parts[1].slice(0, 5);
+        }
+        return cleaned;
     }
 };
 
 const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex, isStarted }: Props) => {
-    const changeParam = (paramIndex: number, type: 'min' | 'max' | 'value', value: string) => {
-        // @ts-ignore
+    const changeParam = (paramIndex: number, type: 'min' | 'max' | 'value', value: string, paramType: 'int' | 'float') => {
+        console.log(value);
+
+        const cleanedValue = validateAndCleanInput(value, paramType);
+
         setAlgorithmData((algsParams) => {
             const algsParamsCopy = JSON.parse(JSON.stringify(algsParams));
-            algsParamsCopy[algIndex].params[paramIndex][type] = Number(value);
+            // Zapisujemy jako string w stanie, aby kropka nie znikała podczas pisania
+            // Jeśli Twoje interfejsy WYMAGAJĄ number, użyj parseFloat(cleanedValue)
+            // ale pamiętaj, że to utrudni wpisywanie samej kropki.
+            algsParamsCopy[algIndex].params[paramIndex][type] = cleanedValue;
             return algsParamsCopy;
         });
     };
 
     const toggleState = () => {
-        // @ts-ignore
         setAlgorithmData((algsParams) => {
             const algsParamsCopy = JSON.parse(JSON.stringify(algsParams));
             algsParamsCopy[algIndex].isUsed = !algsParamsCopy[algIndex].isUsed;
@@ -41,12 +58,12 @@ const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex, isStarted }: Prop
         <div className="algorithm-card">
             <div className="algorithm-header">
                 <h3>{algorithmData.name} algorithm</h3>
-                <div onClick={() => !isStarted && toggleState()} className={`toggle-switch ${algorithmData.isUsed && 'active'}`} data-algo="bat">
+                <div onClick={() => !isStarted && toggleState()} className={`toggle-switch ${algorithmData.isUsed ? 'active' : ''}`}>
                     <div className="toggle-slider"></div>
                 </div>
             </div>
 
-            {algorithmData.params.length == 0 ? (
+            {algorithmData.params.length === 0 ? (
                 'Brak argumentów'
             ) : (
                 <>
@@ -57,21 +74,18 @@ const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex, isStarted }: Prop
                         <div className="label-text">Max</div>
                     </div>
 
-                    {/* Wiersze parametrów (przykłady) */}
-
                     {algorithmData.params.map((param, index) => {
                         if ('value' in param) {
                             return (
-                                <div className="param-row">
+                                <div className="param-row" key={index}>
                                     <label>{param.name}:</label>
                                     <input
-                                        onInput={(e) => correctInputType(e, param.type)}
-                                        onChange={(e) => changeParam(index, 'value', e.currentTarget.value)}
+                                        type="text" // Zmienione na text dla lepszej kontroli
+                                        inputMode="decimal"
+                                        onChange={(e) => changeParam(index, 'value', e.currentTarget.value, param.type)}
                                         value={param.value}
-                                        type="number"
-                                        min={0}
-                                        step={param.type == 'float' ? 0.1 : 1}
                                         disabled={isStarted}
+                                        placeholder="0.00000"
                                     />
                                 </div>
                             );
@@ -79,32 +93,27 @@ const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex, isStarted }: Prop
 
                         if ('min' in param) {
                             return (
-                                <div className="param-row">
+                                <div className="param-row" key={index}>
                                     <label>{param.name}:</label>
                                     <input
-                                        onChange={(e) => {
-                                            changeParam(index, 'min', e.currentTarget.value);
-                                            correctInputType(e, param.type);
-                                        }}
+                                        type="text"
+                                        inputMode="decimal"
+                                        onChange={(e) => changeParam(index, 'min', e.currentTarget.value, param.type)}
                                         value={param.min}
-                                        type="number"
-                                        step={param.type == 'float' ? 0.1 : 1}
-                                        min={0}
                                         disabled={isStarted}
                                     />
                                     <span className="separator">-</span>
                                     <input
-                                        onInput={(e) => correctInputType(e, param.type)}
-                                        onChange={(e) => changeParam(index, 'max', e.currentTarget.value)}
+                                        type="text"
+                                        inputMode="decimal"
+                                        onChange={(e) => changeParam(index, 'max', e.currentTarget.value, param.type)}
                                         value={param.max}
-                                        type="number"
-                                        step={param.type == 'float' ? 0.1 : 1}
-                                        min={0}
                                         disabled={isStarted}
                                     />
                                 </div>
                             );
                         }
+                        return null;
                     })}
                 </>
             )}

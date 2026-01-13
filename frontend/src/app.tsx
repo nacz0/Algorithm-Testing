@@ -41,6 +41,9 @@ export function App() {
                 setIsStarted(true);
                 setIsPaused(false);
                 addNewNotification('Started successfully', 'green');
+                setAlgProgress(0);
+                setProgress(0);
+                setResults({ result: {}, figures: [] });
                 break;
             case 'pause':
                 console.log('pause');
@@ -69,6 +72,14 @@ export function App() {
                 setIsStarted(false);
 
                 addNewNotification('Finished', 'green');
+                setResults(lastMessage.message);
+                break;
+
+            case 'error':
+                setIsPaused(false);
+                setIsStarted(false);
+
+                addNewNotification('Wrong function syntax', 'red');
                 setResults(lastMessage.message);
                 break;
 
@@ -145,7 +156,7 @@ export function App() {
             {isStarted && (
                 <div id="progress-container" className="progress-container hidden">
                     <ProgressBar label="Algorytmy" progress={algProgress} />
-                    <ProgressBar label="Iteracja" progress={progress} />
+                    <ProgressBar label="Strojenie" progress={progress} />
                 </div>
             )}
 

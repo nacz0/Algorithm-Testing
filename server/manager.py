@@ -17,6 +17,26 @@ class SimulationManager:
 
         self._load_params()
 
+        async def _progress_send_fn(progress, type):
+                await self.send(type="progress", message = ({"type": type, "progress": progress}))
+            
+
+        async def _stop_check_fn():
+                if not self.isRunning:
+                    print("Stop detected")
+                return not self.isRunning
+            
+        async def _pause_check_fn():
+                if self.isPaused:
+                    print("Pause detected")
+                return self.isPaused
+            
+        self.metaheuristic_tuner = MetaheuristicTuner( 
+                                                          progress_send_fn=_progress_send_fn,
+                                                          stop_check_fn=_stop_check_fn,
+                                                          pause_check_fn=_pause_check_fn)
+
+
     async def connect(self, ws):
         self.websocket = ws
         await ws.accept()
@@ -115,22 +135,24 @@ class SimulationManager:
             self.isPaused = True
         elif command == "stop":
             print("Stopping simulation")
+            if self.isPaused:
+                self.metaheuristic_tuner.delete_checkpoints()
+                await self.send(type="stop", message = "Stoped successfully")
             self.isRunning = False
             self.isPaused = False
+            
         elif command == "get_params":
             await self._send_params()
 
 
     async def start(self):
         print("Starting simulation")
-        # 1. Pobierz referencję do aktualnie wykonywanego zadania
         this_task = asyncio.current_task()
 
-        # 2. Anuluj poprzednie zadanie tylko, jeśli jest inne niż obecne
         if self._current_task and self._current_task != this_task:
             self._current_task.cancel()
             try:
-                await self._current_task # opcjonalnie czekaj na zamknięcie
+                await self._current_task
             except asyncio.CancelledError:
                 pass
 
@@ -143,34 +165,13 @@ class SimulationManager:
             self.selected_function["code"] = func
 
    
-        
-        if self.metaheuristic_tuner is None:
-            async def _progress_send_fn(progress, type):
-                await self.send(type="progress", message = ({"type": type, "progress": progress}))
-            
-
-            async def _stop_check_fn():
-                if not self.isRunning:
-                    print("Stop detected")
-                return not self.isRunning
-            
-            async def _pause_check_fn():
-                if self.isPaused:
-                    print("Pause detected")
-                return self.isPaused
-            
-            self.metaheuristic_tuner = MetaheuristicTuner(self.algorithmsData, 
-                                                          progress_send_fn=_progress_send_fn,
-                                                          stop_check_fn=_stop_check_fn,
-                                                          pause_check_fn=_pause_check_fn)
-
         selected = list(filter(lambda alg: alg["isUsed"], self.algorithmsData))
 
         dim = next((p["value"] for p in self.shared_params_data if p["name"] == "Dimentions"), None)
         iterations = next((p["value"] for p in self.shared_params_data if p["name"] == "Iterations"), None)
       
-        # TODO: What is the perpose of iterations here?
         results, figures = await self.metaheuristic_tuner.tune_algorithms(
+            algorithmsData = self.algorithmsData,
             selected=[alg["name"] for alg in selected],
             selected_funcs=[self.selected_function],
             dim=dim,
