@@ -4,7 +4,7 @@ import type { AlgorithmData } from '../../interfaces';
 
 interface Props {
     algorithmData: AlgorithmData[];
-    setAlgorithmData: (a: AlgorithmData[]) => void;
+    setAlgorithmData: (callback: (a: AlgorithmData[]) => AlgorithmData[]) => void;
     isStarted: boolean;
 }
 

@@ -1,7 +1,5 @@
 import asyncio
 import json
-import os
-import requests
 import math
 from algorithms.MetaheuristicTuner import MetaheuristicTuner
 
@@ -14,10 +12,15 @@ class SimulationManager:
         self._current_task = None
         self.metaheuristic_tuner = None
         self.filename = "checkpoint.json"
+        self.progressInfo = {
+            "alg_progress": 0,
+            "param_progress": 0
+        }
 
         self._load_params()
 
         async def _progress_send_fn(progress, type):
+                self.progressInfo[type] = progress
                 await self.broadcast(type="progress", message = ({"type": type, "progress": progress}))
             
 
@@ -49,9 +52,7 @@ class SimulationManager:
             self.clients.remove(ws)
         print(f"Klient odłączony. Aktywnych klientów: {len(self.clients)}")
         # Zatrzymaj symulację tylko jeśli nie ma żadnych klientów
-        if len(self.clients) == 0:
-            self.isRunning = False
-
+     
     async def send(self, ws, type, message):
         """Wysyła wiadomość do konkretnego klienta."""
         try:
@@ -140,6 +141,7 @@ class SimulationManager:
                 "functions_data": self.functionsData,
                 "isStarted": self.isRunning,
                 "isPaused": self.isPaused,
+                "progressInfo": self.progressInfo
             },
         )
 
@@ -197,7 +199,7 @@ class SimulationManager:
 
         dim = next((p["value"] for p in self.shared_params_data if p["name"] == "Dimentions"), None)
         iterations = next((p["value"] for p in self.shared_params_data if p["name"] == "Iterations"), None)
-      
+        print(self.selected_function)
         results, figures = await self.metaheuristic_tuner.tune_algorithms(
             algorithmsData = self.algorithmsData,
             selected=[alg["name"] for alg in selected],
@@ -206,7 +208,7 @@ class SimulationManager:
             iterations=iterations, 
             R=20, 
         )
-
+        
         if self.isPaused:
             await self.broadcast(type="pause", message="Paused successfully")
             return
@@ -214,5 +216,8 @@ class SimulationManager:
         if not self.isRunning:
             await self.broadcast(type="stop", message="Stoped successfully")
             return
+        
+        self.isRunning = False
+        self.isPaused = False
 
         await self.broadcast(type="finished", message={"result": results, "figures": figures})

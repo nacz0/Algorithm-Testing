@@ -4,7 +4,7 @@ from matplotlib.animation import FuncAnimation
 import base64
 import os
 
-def animate_algorithm(positions_log, bounds, objective_func, interval=500):
+def animate_algorithm(positions_log, bounds, objective_func, interval=300):
 
     # Przygotowanie siatki pod contour plot
     x = np.linspace(bounds[0][0], bounds[0][1], 200)

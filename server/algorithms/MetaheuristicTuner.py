@@ -19,13 +19,11 @@ from algorithms.GeneticAlgorithm import (
 from algorithms.plotConvergence import plot_convergence
 from algorithms.animateAlgorithms import animate_algorithm
 
-from algorithms.objective_functions import sphere_function, rastrigin_function, rosenbrock_function
-
 class MetaheuristicTuner:
 
     def param_spaces_fn(self, algorithm):
         new_param_space = {}
-
+        
         for alg in  algorithm:
             name = alg["name"]
             params = {}
@@ -65,6 +63,11 @@ class MetaheuristicTuner:
             "Genetic": self.run_GA,
             "ABC": self.run_ABC
         }
+        
+        self.generic_static_params = {
+            "crossover_type": "arithmetic",
+            "mutation_type": "uniform"
+        }
 
     # ============================================================
     # WRAPPERY ALGORYTMÓW
@@ -95,8 +98,8 @@ class MetaheuristicTuner:
 
     def run_GA(self, params, func, bounds, dim):
         # Parametry kategoryczne są już zmapowane w vector_to_params()
-        crossover_type = params["crossover_type"]
-        mutation_type  = params["mutation_type"]
+        crossover_type = self.generic_static_params["crossover_type"]
+        mutation_type  = self.generic_static_params["mutation_type"]
 
         crossover = (
             arithmetic_crossover if crossover_type == "arithmetic"
@@ -129,7 +132,7 @@ class MetaheuristicTuner:
     # FUNKCJA CELU
     # ============================================================
 
-    def evaluate_params(self, params, runner, selected_funcs, dim, R=20):
+    async def evaluate_params(self, params, runner, selected_funcs, dim, R=20):
         sigmas = []
 
         for fmeta in selected_funcs:
@@ -138,6 +141,9 @@ class MetaheuristicTuner:
 
             results = []
             for r in range(R):
+                if await self.pause_check_fn() or await self.stop_check_fn():
+                    return None
+                await asyncio.sleep(0)
                 np.random.seed(r)
                 random.seed(r)
                 results.append(runner(params, func, bounds, dim))
@@ -172,8 +178,8 @@ class MetaheuristicTuner:
             crossover_raw = max(0, min(1, crossover_raw))
             mutation_raw  = max(0, min(1, mutation_raw))
 
-            params["crossover_type"] = "arithmetic" if crossover_raw == 0 else "single_point"
-            params["mutation_type"]  = "uniform"    if mutation_raw  == 0 else "gaussian"
+            self.generic_static_params["crossover_type"] = "arithmetic" if crossover_raw == 0 else "single_point"
+            self.generic_static_params["mutation_type"]  = "uniform"    if mutation_raw  == 0 else "gaussian"
 
         return params
 
@@ -233,7 +239,16 @@ class MetaheuristicTuner:
 
             for x in solutions:
                 params = self.vector_to_params(x, param_space, algorithm)
-                fitness.append(self.evaluate_params(params, runner, selected_funcs, dim, R))
+                fit_val = await self.evaluate_params(params, runner, selected_funcs, dim, R)
+                if fit_val is None:
+                    if await self.pause_check_fn():
+                        print(f"Zatrzymano tuner {algorithm} na iteracji {it}.")
+                        return "pause"
+                    if await self.stop_check_fn():
+                        print(f"Zatrzymano tuner {algorithm} na iteracji {it}")
+                        return "stop"
+                else:
+                    fitness.append(fit_val)
 
             es.tell(solutions, fitness)
             es.disp()
@@ -276,8 +291,8 @@ class MetaheuristicTuner:
                     max_iter=best['max_iter'],
                     dims=dim)
             if alg == "Genetic":
-                crossover = (arithmetic_crossover if best['crossover_type'] == 0 else single_point_crossover)
-                mutation = (gaussian_mutation if best['mutation_type'] == 0 else uniform_mutation)
+                crossover = (arithmetic_crossover if self.generic_static_params['crossover_type'] == 0 else single_point_crossover)
+                mutation = (gaussian_mutation if self.generic_static_params['mutation_type'] == 0 else uniform_mutation)
                 _, _, convergence_curve, positions_log = genetic_algorithm(best['pop_size'], dim, bounds, best['max_generations'], func, best['crossover_rate'], best['mutation_rate'], best['mutation_scale'], best['elitism_rate'], best['tournament_size'], crossover, mutation)
  
             convergence_plot_base64 = plot_convergence(convergence_curve, alg, fn_name)
@@ -320,6 +335,7 @@ class MetaheuristicTuner:
         # ====== PĘTLA ALGORYTMÓW ======
         for i in range(start_index, len(selected)):
             await self.progress_send_fn(int(i/len(selected)*100), type="alg_progress")
+            await self.progress_send_fn(0, type="param_progress")
 
             alg = selected[i]
             print(alg)

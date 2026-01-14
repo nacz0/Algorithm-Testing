@@ -43,7 +43,7 @@ export function App() {
                 addNewNotification('Started successfully', 'green');
                 setAlgProgress(0);
                 setProgress(0);
-                setResults({ result: {}, figures: [] });
+                setResults({ result: {}, figures: {} });
                 break;
             case 'pause':
                 console.log('pause');
@@ -72,6 +72,8 @@ export function App() {
                 setIsStarted(false);
 
                 addNewNotification('Finished', 'green');
+                console.log(lastMessage.message.figures.length);
+
                 setResults(lastMessage.message);
                 break;
 
@@ -80,7 +82,7 @@ export function App() {
                 setIsStarted(false);
 
                 addNewNotification('Wrong function syntax', 'red');
-                setResults(lastMessage.message);
+                // setResults(lastMessage.message);
                 break;
 
             case 'get_params':
@@ -101,6 +103,9 @@ export function App() {
                     setFunctionsData(JSON.parse(localStorage.getItem('functionsData') || '[]'));
                     setSelectedFnData(JSON.parse(localStorage.getItem('functionsData') || '[]')[0]);
                 }
+
+                setAlgProgress(lastMessage.message.progressInfo.alg_progress);
+                setProgress(lastMessage.message.progressInfo.param_progress);
 
                 setIsPaused(lastMessage.message.isPaused);
                 setIsStarted(lastMessage.message.isStarted);
@@ -159,8 +164,9 @@ export function App() {
                     <ProgressBar label="Strojenie" progress={progress} />
                 </div>
             )}
-
-            <Raport results={results} />
+            {Object.keys(results.figures).length > 0 && <Raport results={results} />}
         </div>
     );
 }
+
+//TODO: przy update progress zapisuj stan do manager + wysyłaj z get_params

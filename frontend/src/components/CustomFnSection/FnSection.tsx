@@ -95,7 +95,7 @@ const CustomFnSection = ({ fnsData, setFn, selectedFn, isStarted }: Props) => {
                                 Własna funkcja:
                             </label>
                             <div>
-                                <button onClick={() => setIsCustomInputShow(true)}>Load</button>
+                                <button onClick={() => !isStarted && setIsCustomInputShow(true)}>Ładuj</button>
                                 <input id="custom-function" disabled type="text" value={selectedFn.isCustom ? selectedFn.name : ''} placeholder="Nie wybrano" />
                             </div>
                         </div>
@@ -103,7 +103,7 @@ const CustomFnSection = ({ fnsData, setFn, selectedFn, isStarted }: Props) => {
                             <label className={`FnSectin__sectionInfo ${!selectedFn.isCustom && 'FnSection__highlight'}`} htmlFor="builtin-function">
                                 Wbudowane:
                             </label>
-                            <select id="builtin-function" onChange={(e) => setBuildInFn(e)}>
+                            <select id="builtin-function" disabled={isStarted} onChange={(e) => !isStarted && setBuildInFn(e)}>
                                 {fnsData.map((fnData, index) => (
                                     <option value={index}>{fnData.name}</option>
                                 ))}

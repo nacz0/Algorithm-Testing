@@ -31,7 +31,7 @@ export function SharedParamsSection({ sharedAlgsParams, setSharedAlgsParams, isS
             <div className="algorithm-card">
                 <div className="param-labels">
                     <div className="label-space"></div>
-                    <div className="label-text">Value</div>
+                    <div className="label-text">Wartość</div>
                 </div>
 
                 {sharedAlgsParams.map((param, index) => {

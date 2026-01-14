@@ -57,7 +57,7 @@ const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex, isStarted }: Prop
     return (
         <div className="algorithm-card">
             <div className="algorithm-header">
-                <h3>{algorithmData.name} algorithm</h3>
+                <h3>{algorithmData.name} algorytm</h3>
                 <div onClick={() => !isStarted && toggleState()} className={`toggle-switch ${algorithmData.isUsed ? 'active' : ''}`}>
                     <div className="toggle-slider"></div>
                 </div>
@@ -71,7 +71,7 @@ const Alogrytm = ({ algorithmData, setAlgorithmData, algIndex, isStarted }: Prop
                         <div className="label-space"></div>
                         <div className="label-text">Min</div>
                         <div className="separator"></div>
-                        <div className="label-text">Max</div>
+                        <div className="label-text">Maks</div>
                     </div>
 
                     {algorithmData.params.map((param, index) => {
